@@ -1,0 +1,83 @@
+[
+    {
+        "Name": "dtCookie",
+        "Value": "v_4_srv_5_sn_AAE9F892E9FD2F58E81EF47996E1D8E6_perc_100000_ol_0_mul_1_app-3A2a5e717874c6d371_1_app-3A5ba7364ec252cc04_1",
+        "Domain": "",
+        "Path": "/",
+        "Expires": null,
+        "Secure": false,
+        "HttpOnly": true
+    },
+    {
+        "Name": "XSRF-TOKEN",
+        "Value": "d9c8e477-4c58-4590-8203-421364cfd92d",
+        "Domain": "",
+        "Path": "/",
+        "Expires": null,
+        "Secure": false,
+        "HttpOnly": true
+    },
+    {
+        "Name": "TCB01d3f3a4",
+        "Value": "019618046231edb89c7a16c97820b0fb8cfee80638ba0a4e772c3c952d18f96e68ca6acecf4f16da9a89b03db4d33f6e8612e5d3d26f0687becb92b8cf40c9b561b358cdae60222696f04130504abb459a397be5763ba6b21cec4e06bfca1953551c12325c",
+        "Domain": "",
+        "Path": "/",
+        "Expires": null,
+        "Secure": false,
+        "HttpOnly": true
+    },
+    {
+        "Name": "AUTH_SESSION_ID",
+        "Value": "66e6b776-c5a9-4bd0-b579-50be6ae6bb93.bb-identity-3671",
+        "Domain": "",
+        "Path": "/",
+        "Expires": null,
+        "Secure": false,
+        "HttpOnly": true
+    },
+    {
+        "Name": "AUTH_SESSION_ID_LEGACY",
+        "Value": "66e6b776-c5a9-4bd0-b579-50be6ae6bb93.bb-identity-3671",
+        "Domain": "",
+        "Path": "/",
+        "Expires": null,
+        "Secure": false,
+        "HttpOnly": true
+    },
+    {
+        "Name": "KC_RESTART",
+        "Value": "eyJhbGciOiJIUzI1NiIsInR5cCIgOiAiSldUIiwia2lkIiA6ICIxZjMyMmQ2ZS03NzMwLTQzMjYtOTNiZC1iZTczODZmZDQyZDYifQ.eyJjaWQiOiJiYi13ZWItY2xpZW50IiwicHR5Ijoib3BlbmlkLWNvbm5lY3QiLCJydXJpIjoiaHR0cHM6Ly9idXNpbmVzcy50ZWNoY29tYmFuay5jb20udm4vcmVkaXJlY3QiLCJhY3QiOiJBVVRIRU5USUNBVEUiLCJub3RlcyI6eyJzY29wZSI6Im9wZW5pZCIsImlzcyI6Imh0dHBzOi8vYnVzaW5lc3MtaWQudGVjaGNvbWJhbmsuY29tLnZuL2F1dGgvcmVhbG1zL2JhY2tiYXNlIiwicmVzcG9uc2VfdHlwZSI6ImNvZGUiLCJiYWNrYmFzZV9hY3IiOiIiLCJjb2RlX2NoYWxsZW5nZV9tZXRob2QiOiJTMjU2IiwicmVkaXJlY3RfdXJpIjoiaHR0cHM6Ly9idXNpbmVzcy50ZWNoY29tYmFuay5jb20udm4vcmVkaXJlY3QiLCJzdGF0ZSI6IjRGMDYzMTkyLTkzNEItMjVGOS03RTE5LUUxOTY1RTk5RDZBNDk5MSIsIm5vbmNlIjoiNEYwNjMxOTItOTM0Qi0yNUY5LTdFMTktRTE5NjVFOTlENkE0OTkxIiwiY29kZV9jaGFsbGVuZ2UiOiI3VkJycjVsMlR0UDE0djRBckZhNEdzTmY0WldCdGlhSHJHMDBRbUtRSUdnIiwicmVzcG9uc2VfbW9kZSI6ImZyYWdtZW50In19.RUJUAa2L9zC1f6u4hIE0QVcdPwEL-kOw29OCOfbntdM",
+        "Domain": "",
+        "Path": "/",
+        "Expires": null,
+        "Secure": false,
+        "HttpOnly": true
+    },
+    {
+        "Name": "TCB01e8619e",
+        "Value": "01961804621e49890b55569fc1211ebb383cb421d2b837aa645c626c0547d75f876c8870005c2875d89dfcae61e39a960a1c710c1ed0472ca8fc164dc4c5623fe06f406914f81134356a696541897f6b70e2c3c36b3aced3e563e25d7af14c58e5fcbf6e5d",
+        "Domain": "",
+        "Path": "/",
+        "Expires": null,
+        "Secure": false,
+        "HttpOnly": true
+    },
+    {
+        "Name": "TCB01b16fe3",
+        "Value": "01961804629010ab9fe16400a85329c0d3ebfa2af6b837aa645c626c0547d75f876c887000efc72ab753bcb7a4bdf4385253da746e8acb5fb8e867aaaa266ab3d7e6a56cfa",
+        "Domain": "",
+        "Path": "/",
+        "Expires": null,
+        "Secure": false,
+        "HttpOnly": true
+    },
+    {
+        "Name": "TCB01d3f3a4",
+        "Value": "019618046231edb89c7a16c97820b0fb8cfee80638ba0a4e772c3c952d18f96e68ca6acecf4f16da9a89b03db4d33f6e8612e5d3d26f0687becb92b8cf40c9b561b358cdae60222696f04130504abb459a397be5763ba6b21cec4e06bfca1953551c12325c",
+        "Domain": ".business.techcombank.com.vn",
+        "Path": "/",
+        "Expires": null,
+        "Secure": false,
+        "HttpOnly": false
+    }
+]
