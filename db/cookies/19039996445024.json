@@ -1,0 +1,146 @@
+[
+    {
+        "Name": "dtCookie",
+        "Value": "v_4_srv_3_sn_CC337D25FC851A5EC26C1706B2522920_perc_100000_ol_0_mul_1_app-3A5ba7364ec252cc04_1_app-3A2a5e717874c6d371_0",
+        "Domain": "",
+        "Path": "/",
+        "Expires": null,
+        "Secure": false,
+        "HttpOnly": true
+    },
+    {
+        "Name": "AUTH_SESSION_ID",
+        "Value": "46871092-352a-4096-a296-fdbd5e126a11.bb-identity-4877",
+        "Domain": "",
+        "Path": "/",
+        "Expires": null,
+        "Secure": false,
+        "HttpOnly": true
+    },
+    {
+        "Name": "AUTH_SESSION_ID_LEGACY",
+        "Value": "46871092-352a-4096-a296-fdbd5e126a11.bb-identity-4877",
+        "Domain": "",
+        "Path": "/",
+        "Expires": null,
+        "Secure": false,
+        "HttpOnly": true
+    },
+    {
+        "Name": "TS014ca27c",
+        "Value": "01e46b12607967a2d4d2246a0e5277dd5b548d54f9073ae0a06529595a37dbf884daa7c697f0885fb617c1483d7a9141a29984d8ee5f8490553388c4b1748c254d81d835153cf135c8edb6da94b4b7835f9c6a8051d2d8fd59eab4ac8284162d2ac154d596",
+        "Domain": "",
+        "Path": "/",
+        "Expires": null,
+        "Secure": false,
+        "HttpOnly": true
+    },
+    {
+        "Name": "KEYCLOAK_IDENTITY",
+        "Value": "eyJhbGciOiJIUzI1NiIsInR5cCIgOiAiSldUIiwia2lkIiA6ICIxZjMyMmQ2ZS03NzMwLTQzMjYtOTNiZC1iZTczODZmZDQyZDYifQ.eyJleHAiOjE3MjA4MTkzNjksImlhdCI6MTcyMDc4MzM2OSwianRpIjoiNWExZjU5ZDQtZjhkYS00NWVhLThkOTktZDc4Nzc5ZWY4ZGY5IiwiaXNzIjoiaHR0cHM6Ly9idXNpbmVzcy1pZC50ZWNoY29tYmFuay5jb20udm4vYXV0aC9yZWFsbXMvYmFja2Jhc2UiLCJzdWIiOiJhNmEzYzRhOC03MDU2LTQ4OWUtODBkMi0xNDUzNTUyZGU0NGMiLCJ0eXAiOiJTZXJpYWxpemVkLUlEIiwic2Vzc2lvbl9zdGF0ZSI6IjQ2ODcxMDkyLTM1MmEtNDA5Ni1hMjk2LWZkYmQ1ZTEyNmExMSIsInNpZCI6IjQ2ODcxMDkyLTM1MmEtNDA5Ni1hMjk2LWZkYmQ1ZTEyNmExMSIsInN0YXRlX2NoZWNrZXIiOiJKaGctemxIMUZwUDRfSnZSYVUxVzlMXzBQS2RITHRobVJOdGYzSERXOFAwIn0.Ub-tUNQaoXUBfIar3Pi_FeE409yt_xQjH42OTubzwWg",
+        "Domain": "",
+        "Path": "/",
+        "Expires": null,
+        "Secure": false,
+        "HttpOnly": true
+    },
+    {
+        "Name": "KEYCLOAK_IDENTITY_LEGACY",
+        "Value": "eyJhbGciOiJIUzI1NiIsInR5cCIgOiAiSldUIiwia2lkIiA6ICIxZjMyMmQ2ZS03NzMwLTQzMjYtOTNiZC1iZTczODZmZDQyZDYifQ.eyJleHAiOjE3MjA4MTkzNjksImlhdCI6MTcyMDc4MzM2OSwianRpIjoiNWExZjU5ZDQtZjhkYS00NWVhLThkOTktZDc4Nzc5ZWY4ZGY5IiwiaXNzIjoiaHR0cHM6Ly9idXNpbmVzcy1pZC50ZWNoY29tYmFuay5jb20udm4vYXV0aC9yZWFsbXMvYmFja2Jhc2UiLCJzdWIiOiJhNmEzYzRhOC03MDU2LTQ4OWUtODBkMi0xNDUzNTUyZGU0NGMiLCJ0eXAiOiJTZXJpYWxpemVkLUlEIiwic2Vzc2lvbl9zdGF0ZSI6IjQ2ODcxMDkyLTM1MmEtNDA5Ni1hMjk2LWZkYmQ1ZTEyNmExMSIsInNpZCI6IjQ2ODcxMDkyLTM1MmEtNDA5Ni1hMjk2LWZkYmQ1ZTEyNmExMSIsInN0YXRlX2NoZWNrZXIiOiJKaGctemxIMUZwUDRfSnZSYVUxVzlMXzBQS2RITHRobVJOdGYzSERXOFAwIn0.Ub-tUNQaoXUBfIar3Pi_FeE409yt_xQjH42OTubzwWg",
+        "Domain": "",
+        "Path": "/",
+        "Expires": null,
+        "Secure": false,
+        "HttpOnly": true
+    },
+    {
+        "Name": "KEYCLOAK_SESSION",
+        "Value": "backbase/a6a3c4a8-7056-489e-80d2-1453552de44c/46871092-352a-4096-a296-fdbd5e126a11",
+        "Domain": "",
+        "Path": "/",
+        "Expires": null,
+        "Secure": false,
+        "HttpOnly": true
+    },
+    {
+        "Name": "KEYCLOAK_SESSION_LEGACY",
+        "Value": "backbase/a6a3c4a8-7056-489e-80d2-1453552de44c/46871092-352a-4096-a296-fdbd5e126a11",
+        "Domain": "",
+        "Path": "/",
+        "Expires": null,
+        "Secure": false,
+        "HttpOnly": true
+    },
+    {
+        "Name": "TS0115ac01",
+        "Value": "01e46b12602204b73fbff1a942177b7066012444ab073ae0a06529595a37dbf884daa7c69706af75278eadc05d66dc8a238e1888448041ad8f42f8050917b16e81f0edf86c",
+        "Domain": "",
+        "Path": "/",
+        "Expires": null,
+        "Secure": false,
+        "HttpOnly": true
+    },
+    {
+        "Name": "KC_RESTART",
+        "Value": "eyJhbGciOiJIUzI1NiIsInR5cCIgOiAiSldUIiwia2lkIiA6ICIxZjMyMmQ2ZS03NzMwLTQzMjYtOTNiZC1iZTczODZmZDQyZDYifQ.eyJjaWQiOiJiYi13ZWItY2xpZW50IiwicHR5Ijoib3BlbmlkLWNvbm5lY3QiLCJydXJpIjoiaHR0cHM6Ly9idXNpbmVzcy50ZWNoY29tYmFuay5jb20udm4vcmVkaXJlY3QiLCJhY3QiOiJBVVRIRU5USUNBVEUiLCJub3RlcyI6eyJzY29wZSI6Im9wZW5pZCIsImlzcyI6Imh0dHBzOi8vYnVzaW5lc3MtaWQudGVjaGNvbWJhbmsuY29tLnZuL2F1dGgvcmVhbG1zL2JhY2tiYXNlIiwicmVzcG9uc2VfdHlwZSI6ImNvZGUiLCJiYWNrYmFzZV9hY3IiOiIiLCJjb2RlX2NoYWxsZW5nZV9tZXRob2QiOiJTMjU2IiwicmVkaXJlY3RfdXJpIjoiaHR0cHM6Ly9idXNpbmVzcy50ZWNoY29tYmFuay5jb20udm4vcmVkaXJlY3QiLCJzdGF0ZSI6IjIwQkM5QjRCLTgxQzktN0JEMC1FQjVELUI1RDVGNUFGOTMzMjkxRiIsIm5vbmNlIjoiMjBCQzlCNEItODFDOS03QkQwLUVCNUQtQjVENUY1QUY5MzMyOTFGIiwiY29kZV9jaGFsbGVuZ2UiOiJOUmVCVXZhUWxEZzVZZXh4cDNCZFVnc0syVjZWVTROTEtqZjFSdjBaOURvIiwicmVzcG9uc2VfbW9kZSI6ImZyYWdtZW50In19.6-uTkgSwSt6SsTQJmpamsgVSt9shco2Y3c6je7yOkiU",
+        "Domain": "",
+        "Path": "/",
+        "Expires": null,
+        "Secure": false,
+        "HttpOnly": true
+    },
+    {
+        "Name": "TS01773046",
+        "Value": "01e46b1260931023409a1ffe0a5ea0e5f94b3a15d1073ae0a06529595a37dbf884daa7c69706af75278eadc05d66dc8a238e1888449810490770542a7c56264cb3a50ed338fc0e6c600e36fb557b14fa3b31a9e6ba50d4296a28a5d8c8f72717d8b93c5737",
+        "Domain": "",
+        "Path": "/",
+        "Expires": null,
+        "Secure": false,
+        "HttpOnly": true
+    },
+    {
+        "Name": "XSRF-TOKEN",
+        "Value": "9204d604-3015-4165-8f9e-79687a9a3118",
+        "Domain": "",
+        "Path": "/",
+        "Expires": null,
+        "Secure": false,
+        "HttpOnly": true
+    },
+    {
+        "Name": "USER_CONTEXT",
+        "Value": "eyJraWQiOiJaNXB5dkxcL3FMYUFyR3ZiTkY3Qm11UGVQU1Q4R0I5UHBPR0RvRnBlbmIxOD0iLCJjdHkiOiJKV1QiLCJlbmMiOiJBMTI4Q0JDLUhTMjU2IiwiYWxnIjoiZGlyIn0..AHCQeMyjD7dabQjmYTNJBw.zSytdBqLTlxB5-JKxH_vZDVd_BdG9juPAYy2HgDc4_rVLIREUIAnxQQMjZGIcgwwn2dxHT0mzBckJZx6Up4emsw69rN-KejdU__gs_uA7CPlS4JHP7P-_A12PIaiFQB27NOvqevFiGaXmm0gu7ZCzhp6wGhocMMl_bh_wmXcM6BTyoBWRxfQC9meYUHPT5lfnTwvKqkdzdQUOP0vV01NRtbFQMFMIhYu9bXzdmqLp_HB0dBm2wPWKBSjFde8FQQPE7pd55eF_AWqyuzM_hSsKHZ1dpms4ILr-qdjeVGcTFKX53-0wmgLqX-tS7KAMvBiyLFfk86dTHwIMqQfWEwGrA.Mn9IOFOglnA_hKy3wiT3wg",
+        "Domain": "",
+        "Path": "/",
+        "Expires": null,
+        "Secure": false,
+        "HttpOnly": true
+    },
+    {
+        "Name": "dtCookie",
+        "Value": "v_4_srv_3_sn_CC337D25FC851A5EC26C1706B2522920_perc_100000_ol_0_mul_1_app-3A5ba7364ec252cc04_1_app-3A2a5e717874c6d371_0",
+        "Domain": ".techcombank.com.vn",
+        "Path": "/",
+        "Expires": null,
+        "Secure": false,
+        "HttpOnly": false
+    },
+    {
+        "Name": "TS01773046",
+        "Value": "01e46b1260931023409a1ffe0a5ea0e5f94b3a15d1073ae0a06529595a37dbf884daa7c69706af75278eadc05d66dc8a238e1888449810490770542a7c56264cb3a50ed338fc0e6c600e36fb557b14fa3b31a9e6ba50d4296a28a5d8c8f72717d8b93c5737",
+        "Domain": ".business.techcombank.com.vn",
+        "Path": "/",
+        "Expires": null,
+        "Secure": false,
+        "HttpOnly": false
+    },
+    {
+        "Name": "USER_CONTEXT",
+        "Value": "eyJraWQiOiJaNXB5dkxcL3FMYUFyR3ZiTkY3Qm11UGVQU1Q4R0I5UHBPR0RvRnBlbmIxOD0iLCJjdHkiOiJKV1QiLCJlbmMiOiJBMTI4Q0JDLUhTMjU2IiwiYWxnIjoiZGlyIn0..AHCQeMyjD7dabQjmYTNJBw.zSytdBqLTlxB5-JKxH_vZDVd_BdG9juPAYy2HgDc4_rVLIREUIAnxQQMjZGIcgwwn2dxHT0mzBckJZx6Up4emsw69rN-KejdU__gs_uA7CPlS4JHP7P-_A12PIaiFQB27NOvqevFiGaXmm0gu7ZCzhp6wGhocMMl_bh_wmXcM6BTyoBWRxfQC9meYUHPT5lfnTwvKqkdzdQUOP0vV01NRtbFQMFMIhYu9bXzdmqLp_HB0dBm2wPWKBSjFde8FQQPE7pd55eF_AWqyuzM_hSsKHZ1dpms4ILr-qdjeVGcTFKX53-0wmgLqX-tS7KAMvBiyLFfk86dTHwIMqQfWEwGrA.Mn9IOFOglnA_hKy3wiT3wg",
+        "Domain": "business.techcombank.com.vn",
+        "Path": "/",
+        "Expires": null,
+        "Secure": false,
+        "HttpOnly": false
+    }
+]

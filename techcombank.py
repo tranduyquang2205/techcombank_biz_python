@@ -8,53 +8,90 @@ import re
 import os
 from requests.cookies import RequestsCookieJar
 import string
+from datetime import datetime
+import threading
+import queue
+import traceback
+import sys
 from urllib.parse import urlparse, parse_qs
+from datetime import datetime
+
+phone_setup_event = threading.Event()
+start_event = threading.Event()
+stop_event = threading.Event()
+transfer_result_queue = queue.Queue()
+# from banks.techcombank.smart_otp import automate_device
+
+
+path = ""
+
+
 
 
 class Techcombank:
-    def __init__(self, username, password, account_number, device_id):
-        self.file = f"db/users/{account_number}.json"
-        self.cookies_file = f"db/cookies/{account_number}.json"
+    _thread_started = False
+    def __init__(self, username, password, account_number, device_id, pin_code,proxy_list=None):
+        start_event.set()
+            
+        # if not Techcombank._thread_started:
+        #     Techcombank._thread_started = True
+        #     thread_automate_device = threading.Thread(target=automate_device, args=(device_id,password,pin_code,phone_setup_event,start_event,stop_event))
+        #     thread_automate_device.start()
+        # phone_setup_event.wait()
+        self.file = f"{path}db/users/{account_number}.json"
+        self.cookies_file = f"{path}db/cookies/{account_number}.json"
         self.session = requests.Session()
-        self.state = self.get_imei()
-        self.nonce = self.get_imei()
-        self.code_verifier = ''.join(random.choices("abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789", k=96))
-        self.code_challenge = self.get_code_challenge(self.code_verifier)
+        # self.state = self.get_imei()
+        # self.nonce = self.get_imei()
+        # self.code_verifier = ''.join(random.choices("abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789", k=96))
+        # self.code_challenge = self.get_code_challenge(self.code_verifier)
         self.cookies = RequestsCookieJar()
         self.username = username
         self.password = password
         self.account_number = account_number
+        self.device_id = device_id
+        self.pin_code = pin_code
         self.auth_token = None
         self.refresh_token = None
         self.identification_id = None
         self.name_account = None
         self.is_login = False
         self.balance = None
-        self.id = None
         self.fullname = None
+        self._timeout = 20
+        self.time_set_token = None
         self.pending_transfer = []
         self.service_agreement_id = None
         self.account_holder_names = None
         self.arrangements_ids = None
+        self.partnerAcctNo = ""
+        self.proxy_list = proxy_list
+        if self.proxy_list:
+            self.proxy_info = self.proxy_list.pop(0)
+            proxy_host, proxy_port, username_proxy, password_proxy = self.proxy_info.split(':')
+            self.proxies = {
+                'http': f'socks5://{username_proxy}:{password_proxy}@{proxy_host}:{proxy_port}',
+                'https': f'socks5://{username_proxy}:{password_proxy}@{proxy_host}:{proxy_port}'
+            }
+        else:
+            self.proxies = None
+        
+        
         if not os.path.exists(self.file):
             self.username = username
             self.password = password
             self.account_number = account_number
             self.device_id = device_id
+            self.pin_code = pin_code
             self.fullname = None
             self.auth_token = None
             self.refresh_token = None
+            self.time_set_token = None
             self.is_login = False
             self.pending_transfer = []
             self.save_data()
         else:
             self.parse_data()
-            self.username = username
-            self.password = password
-            self.account_number = account_number
-            self.device_id = device_id
-            self.save_data()
-            
 
         self.init_data()
     def init_data(self):
@@ -69,33 +106,33 @@ class Techcombank:
             'account_number': self.account_number,
             'identification_id': self.identification_id,
             'balance': self.balance,
-            'id': self.id,
             'fullname': self.fullname,
             'is_login': self.is_login,
             'auth_token': self.auth_token,
             'refresh_token': self.refresh_token,
+            'time_set_token': self.time_set_token,
             'device_id': self.device_id,
             'pending_transfer': self.pending_transfer,
         }
-        with open(f"db/users/{self.account_number}.json", 'w') as file:
+        with open(f"{path}db/users/{self.account_number}.json", 'w') as file:
             json.dump(data, file)
     def set_token(self, data):
         self.auth_token = data['access_token']
         self.refresh_token = data['refresh_token']
         self.time_set_token = time.time()
     def parse_data(self):
-        with open(f"db/users/{self.account_number}.json", 'r') as file:
+        with open(f"{path}db/users/{self.account_number}.json", 'r') as file:
             data = json.load(file)
             self.username = data['username']
             self.password = data['password']
             self.account_number = data['account_number']
             self.identification_id = data['identification_id']
             self.balance = data['balance']
-            self.id = data['id']
             self.fullname = data['fullname']
             self.is_login = data['is_login']
             self.auth_token = data['auth_token']
             self.refresh_token = data['refresh_token']
+            self.time_set_token = data['time_set_token']
             self.device_id = data['device_id']
             self.pending_transfer = data['pending_transfer']
     def save_cookies(self,cookie_jar):
@@ -114,6 +151,14 @@ class Techcombank:
             })
         with open(self.cookies_file, 'w') as file:
             json.dump(cookies, file, indent=4)
+    def reset_cookies(self):
+        # with open(self.cookies_file, 'w') as f:
+        #     json.dump(cookie_jar.get_dict(), f)
+        self.init_data()
+        cookies = []
+        with open(self.cookies_file, 'w') as file:
+            json.dump(cookies, file, indent=4)
+        self.session.cookies.clear()
     def load_cookies(self):
         # try:
         #     with open(self.cookies_file, 'r') as f:
@@ -127,10 +172,9 @@ class Techcombank:
                 cookies = json.load(file)
                 for cookie in cookies:
                     self.session.cookies.set(cookie['Name'], cookie['Value'])
-        except FileNotFoundError:
-            print(f"Cookies file {self.cookies_file} not found.")
-        except json.JSONDecodeError:
-            print(f"Error decoding cookies file {self.cookies_file}.")
+        except (FileNotFoundError, json.decoder.JSONDecodeError):
+            return requests.cookies.RequestsCookieJar()
+        
     def get_login_url(self):
         headers = {
             'Accept-Language': 'en-US,en;q=0.9,vi;q=0.8',
@@ -152,7 +196,6 @@ class Techcombank:
         response = self.session.get(url, headers=headers)
         self.save_cookies(self.session.cookies)
         result = response.text
-
         matches = re.findall(r'form (.*)action="(.*)" method', result)
         if not matches or not matches[0] or not matches[0][1]:
             return None
@@ -340,8 +383,9 @@ class Techcombank:
         }
 
         url = "https://business-id.techcombank.com.vn/auth/realms/backbase/protocol/openid-connect/token"
-
+        self.load_cookies()
         response = self.session.post(url, data=data, headers=headers)
+        self.save_cookies(self.session.cookies)
         result = response.json()
 
         if 'access_token' in result:
@@ -380,6 +424,12 @@ class Techcombank:
         self.load_cookies()
         response = self.session.get(url, headers=headers)
         self.save_cookies(self.session.cookies)
+        if (response.status_code) == 401:
+            return {
+                    'status': 'error',
+                    'msg': 'Please relogin!',
+                    'code': 401
+                }
         result = response.json()
         if len(result) > 0 and 'id' in result[0]:
             self.service_agreement_id = result[0]['id']
@@ -418,6 +468,12 @@ class Techcombank:
         self.load_cookies()
         response = self.session.post('https://business.techcombank.com.vn/api/access-control/client-api/v2/accessgroups/usercontext', headers=headers, json=data)
         self.save_cookies(self.session.cookies)
+        if (response.status_code) == 401:
+            return {
+                    'status': 'error',
+                    'msg': 'Please relogin!',
+                    'code': 401
+                }
         response_body = response.text
         return response_body
     def get_info(self):
@@ -449,6 +505,12 @@ class Techcombank:
         self.load_cookies()
         response = self.session.get(url, headers=headers)
         self.save_cookies(self.session.cookies)
+        if (response.status_code) == 401:
+            return {
+                    'status': 'error',
+                    'msg': 'Please relogin!',
+                    'code': 401
+                }
         result = response.json()
         return result
     def arrangements(self):
@@ -514,7 +576,12 @@ class Techcombank:
         return response
     
     def refresh_arrangements_transactions(self):
-        xsrf_token = self.session.cookies.get('XSRF-TOKEN', '')
+        xsrf_token = ""
+        
+        if self.cookies_file and os.path.exists(self.cookies_file):
+            with open(self.cookies_file, 'r') as file:
+                cookies = json.load(file)
+                xsrf_token = next((cookie['Value'] for cookie in cookies if cookie['Name'] == 'XSRF-TOKEN'), "")
 
         headers = {
             'Accept': 'application/json',
@@ -606,7 +673,157 @@ class Techcombank:
             'msg': 'Please relogin!',
             'code': 401
         }
+    def set_data_transfer(self):
+        data = self.get_info()
+        account = next((acc for acc in data if acc["BBAN"] == self.account_number), None)
+        if account:
+            self.identification_id = account["id"]
+            self.name_account = account["name"]
+            return True
+        return False
+    def get_process_status(self, payment_id):
+        xsrf_token = ""
+        if self.cookies_file and os.path.exists(self.cookies_file):
+            with open(self.cookies_file, 'r') as file:
+                cookies = json.load(file)
+                xsrf_token = next((cookie['Value'] for cookie in cookies if cookie['Name'] == 'XSRF-TOKEN'), "")
+        headers = {
+            'Accept': 'application/json',
+            'Accept-Language': 'en-US,en;q=0.9',
+            'Connection': 'keep-alive',
+            'Content-Type': 'application/json',
+            'Origin': 'https://business.techcombank.com.vn',
+            'Referer': 'https://business.techcombank.com.vn/',
+            'Sec-Fetch-Dest': 'empty',
+            'Sec-Fetch-Mode': 'cors',
+            'Sec-Fetch-Site': 'same-origin',
+            'sec-ch-ua': '"Microsoft Edge";v="125", "Chromium";v="125", "Not.A/Brand";v="24"',
+            'sec-ch-ua-mobile': '?0',
+            'sec-ch-ua-platform': '"Windows"',
+            'User-Agent': self.get_user_agent(),
+            "Authorization": f"Bearer {self.auth_token}",
+            "X-XSRF-TOKEN": xsrf_token,
+        }
 
+        url = f"https://business.techcombank.com.vn/api/payment-order-service/client-api/v2/payment-orders/{payment_id}"
+        
+        response = requests.get(url, headers=headers)
+        return response.json()
+    def get_name(self, account, napas, payment_type):
+        xsrf_token = ""
+        if self.cookies_file and os.path.exists(self.cookies_file):
+            with open(self.cookies_file, 'r') as file:
+                cookies = json.load(file)
+                xsrf_token = next((cookie['Value'] for cookie in cookies if cookie['Name'] == 'XSRF-TOKEN'), "")
+        headers = {
+            'Accept': '*/*',
+            'Accept-Encoding': 'gzip, deflate, br',
+            'Accept-Language': 'en-US,en;q=0.9,vi;q=0.8',
+            'Connection': 'keep-alive',
+            'Content-Type': 'application/json',
+            'Sec-Fetch-Dest': 'empty',
+            'Sec-Fetch-Mode': 'cors',
+            'Sec-Fetch-Site': 'same-site',
+            'User-Agent': self.get_user_agent(),
+            'sec-ch-ua': '"Google Chrome";v="107", "Chromium";v="107", "Not=A?Brand";v="24"',
+            'sec-ch-ua-mobile': '?0',
+            'sec-ch-ua-platform': '"Windows"',
+            "Authorization": f"Bearer {self.auth_token}",
+            "X-XSRF-TOKEN": xsrf_token,
+        }
+        
+        if payment_type == "TCB_NAPAS_PAYMENTS":
+            url = "https://business.techcombank.com.vn/api/tcb-bb-business-banking-payments-accounts-application/client-api/v2/account-detail/napas"
+            data = {
+                "bankId": str(napas),
+                "type": "AccountNumber",
+                "value": str(account)
+            }
+        else:
+            url = "https://business.techcombank.com.vn/api/tcb-bb-business-banking-payments-accounts-application/client-api/v2/account-detail/internal"
+            data = {
+                "accountNumber": str(account)
+            }
+        
+        response = requests.post(url, headers=headers, data=json.dumps(data))
+        result = response.json()
+
+        if 'partnerAcctNo' in result:
+            self.partnerAcctNo = result['partnerAcctNo']
+        if 'accountName' in result:
+            result['beneficiaryName'] = result['accountName']
+        if 'beneficiaryName' in result:
+            result['beneficiaryName'] = result['beneficiaryName'].strip()
+        return result
+    def payment_order_transfer(self, account, name, amount, bank, msg, payment_type):
+        if not self.set_data_transfer():
+            return {"errors": "Loi api ne"}
+
+        xsrf_token = ""
+        if self.cookies_file and os.path.exists(self.cookies_file):
+            with open(self.cookies_file, 'r') as file:
+                cookies = json.load(file)
+                xsrf_token = next((cookie['Value'] for cookie in cookies if cookie['Name'] == 'XSRF-TOKEN'), "")
+
+        headers = {
+            'Accept': 'application/json',
+            'Accept-Encoding': 'gzip, deflate, br',
+            'Accept-Language': 'en-US,en;q=0.9,vi;q=0.8',
+            'Connection': 'keep-alive',
+            'Content-type': 'application/json',
+            'Sec-Fetch-Dest': 'empty',
+            'Sec-Fetch-Mode': 'cors',
+            'Sec-Fetch-Site': 'same-site',
+            'User-Agent': self.get_user_agent(),
+            'sec-ch-ua': '"Google Chrome";v="107", "Chromium";v="107", "Not=A?Brand";v="24"',
+            'sec-ch-ua-mobile': '?0',
+            'sec-ch-ua-platform': '"Windows"',
+            'X-XSRF-TOKEN': xsrf_token,
+            'Authorization': f'Bearer {self.auth_token}'
+        }
+        url = "https://business.techcombank.com.vn/api/payment-order-service/client-api/v2/payment-orders"
+        data = {
+            "originatorAccount": {
+                "identification": {
+                    "identification": self.identification_id,
+                    "schemeName": "ID"
+                },
+                "name": self.name_account
+            },
+            "requestedExecutionDate": datetime.now().strftime('%Y-%m-%d'),
+            "paymentType": payment_type,
+            "transferTransactionInformation": {
+                "instructedAmount": {
+                    "amount": amount,
+                    "currencyCode": "VND"
+                },
+                "counterparty": {
+                    "name": name
+                },
+                "counterpartyAccount": {
+                    "identification": {
+                        "identification": account,
+                        "schemeName": "BBAN"
+                    }
+                },
+                "counterpartyBank": {
+                    "name": bank['name'] if payment_type == "TCB_NAPAS_PAYMENTS" else "Techcombank - Vietnam Technological and Commercial Joint-stock Bank (TCB)"
+                },
+                "messageToBank": msg
+            },
+            "additions": {
+                "bankCitadCode": bank['napas'] if payment_type == "TCB_NAPAS_PAYMENTS" else "",
+                "bankId": bank['napas'] if payment_type == "TCB_NAPAS_PAYMENTS" else "",
+                "bankLogo": bank['abbreviation'] if payment_type == "TCB_NAPAS_PAYMENTS" else "TCB",
+                "bankNameEn": bank['bankNameEn'] if payment_type == "TCB_NAPAS_PAYMENTS" else "Vietnam Technological and Commercial Joint-stock Bank",
+                "bankNameVn": bank['bankNameVn'] if payment_type == "TCB_NAPAS_PAYMENTS" else "Ngân hàng TMCP Kỹ Thương Việt Nam",
+                "bankShortName": bank['shortName'] if payment_type == "TCB_NAPAS_PAYMENTS" else "Techcombank",
+                "partnerAcctNo": self.partnerAcctNo
+            }
+        }
+
+        response = requests.post(url, headers=headers, data=json.dumps(data))
+        return response.json()
     def get_code_challenge(self, string):
         sha256_hash = hashlib.sha256(string.encode()).digest()
         base64_string = base64.b64encode(sha256_hash).decode()
@@ -706,12 +923,116 @@ class Techcombank:
         "Mozilla/5.0 (X11; CrOS x86_64 9901.77.0) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/62.0.3202.97 Safari/537.36"
                         ]
         return random.choice(user_agent_array)
+    def get_bank_checker(self,shortName, is_random=False, amount = 1):
+        file_path = 'bank_account_checker.json'
 
+        # Read the JSON data from the file
+        with open(file_path, 'r') as file:
+            list_bank_account = json.load(file)
+        if is_random:
+            if amount == 1:
+                return random.choice(list_bank_account)
+            else:
+                return random.sample(list_bank_account, amount)
+        for bank_account in list_bank_account:
+            if bank_account['bank_code'] == shortName:
+                return bank_account
+        return None
+    def bank_checker_process(self,bank_send,ben_account_info_origin,type="diff",payment_type='TCB_NAPAS_PAYMENTS'):
+        shortName = bank_send['shortName_checker']
+        bank_checker = self.get_bank_checker(shortName)
+        print('bank_checker',shortName,bank_checker)
+        if bank_checker:
+            ben_account_info = self.get_name(bank_checker['account_number'], bank_send['napas'],payment_type)
+            print('ben_account_info',ben_account_info)
+            if 'errorMessageVn'  in ben_account_info:
+                    return {
+                        'success': False,
+                        'code': 420,
+                        'message': 'Transfer Bank is in Maintenance!',
+                        'data': ben_account_info
+                    }
+            if 'errorCode'  in ben_account_info or 'errors' in ben_account_info:
+                if ben_account_info['errorCode'] == "AI-001":
+                    return {
+                        'success': False,
+                        'code': 419,
+                        'message': 'Receiver Bank is in Maintenance!',
+                        'data': ben_account_info
+                    }
+                if type == "diff":
+                        return {'code':420,'success': False, 'message': 'Transfer Bank is in Maintenance!', 'data': ben_account_info}
+                elif type == "error":        
+                        return {'code':420,'success': False, 'message': 'Transfer Bank is in Maintenance!', 'data': ben_account_info}
+
+            if ben_account_info['beneficiaryName'] != bank_checker['account_name']:
+                if type == "diff":
+                    return {
+                        'success': False,
+                        'code': 419,
+                        'message': 'Receiver Bank is in Maintenance!',
+                        'data': ben_account_info_origin
+                    }
+                elif type == "error":
+                    return {
+                        'success': False,
+                        'code': 419,
+                        'message': 'Receiver Bank is in Maintenance!',
+                        'data': ben_account_info_origin
+                    }
+            if type == "diff":        
+                return {'code':418,'success': False, 'message': 'account_name mismatch!', 'data': ben_account_info_origin}
+            elif type == "error":
+                return {'code':420,'success': False, 'message': 'Transfer Bank is in Maintenance!', 'data': ben_account_info}
+
+        else:
+            bank_checker_list = self.get_bank_checker(shortName,True,5)
+            for index, bank_checker in enumerate(bank_checker_list):
+                
+                ben_account_info = self.get_name(bank_checker['account_number'], bank_send['napas'],payment_type)
+                if 'errorMessageVn'  in ben_account_info:
+                    return {
+                        'success': False,
+                        'code': 420,
+                        'message': 'Transfer Bank is in Maintenance!',
+                        'data': ben_account_info
+                    }
+                if 'errorCode'  in ben_account_info or 'errors' in ben_account_info:
+                    if ben_account_info['errorCode'] == "AI-001":
+                        return {
+                            'success': False,
+                            'code': 419,
+                            'message': 'Receiver Bank is in Maintenance!',
+                            'data': ben_account_info
+                        }
+                    if type == "diff":
+                            return {'code':420,'success': False, 'message': 'Transfer Bank is in Maintenance!', 'data': ben_account_info}
+                    elif type == "error":        
+                            return {'code':420,'success': False, 'message': 'Transfer Bank is in Maintenance!', 'data': ben_account_info}
+
+                if ben_account_info['beneficiaryName'] != bank_checker['account_name']:
+                    if type == "diff":
+                        return {
+                            'success': False,
+                            'code': 419,
+                            'message': 'Receiver Bank is in Maintenance!',
+                            'data': ben_account_info_origin
+                        }
+                    elif type == "error":
+                        return {
+                            'success': False,
+                            'code': 419,
+                            'message': 'Receiver Bank is in Maintenance!',
+                            'data': ben_account_info_origin
+                        }
+                if index == 4:
+                    if type == "diff":        
+                        return {'code':418,'success': False, 'message': 'account_name mismatch!', 'data': ben_account_info_origin['data']}
+                    elif type == "error":
+                        return {'code':420,'success': False, 'message': 'Transfer Bank is in Maintenance!', 'data': ben_account_info}
     # Implement other methods as needed
-def login_techcombank(user):
-    # Create task before login to ask the phone to handle it
-    # to do if need to call func to prepare phone
-    
+def techcombank_login(user):
+    user.reset_cookies()
     login = user.do_login()
     if login['status'] == "SUCCESS":
         # print(json.dumps(login))
@@ -731,90 +1052,305 @@ def login_techcombank(user):
                 token = user.auth_token
             if token:
                 return sync_balance_techcombank(user)
-        except Exception as e:
-            return e
-    else:
-        return login
-
-
-def sync_balance_techcombank(user):
-    try:
-        ary_info = user.get_info()
-        print(ary_info)
-        ary_balance = {}
-        ary_id = {}
-        for acc in ary_info:
-            if 'BBAN' in acc:
-                ary_balance[acc['BBAN']] = acc['availableBalance']
-                ary_id[acc['BBAN']] = acc['id']
             else:
-                return {
-                    'status': 'error',
-                    'msg': 'Please relogin!',
-                    'code': 401
-                }
+                return "-1"
+        except Exception as e:
+            print(traceback.format_exc())
+            sys.exit()
+    else:
+        result = sync_balance_techcombank(user)
+        return (result)
+def sync_balance_techcombank(user):
+    refresh_token = user.do_refresh_token()
+    ary_info = user.get_info()
+    if 'code' in ary_info and ary_info['code'] == 401:
+            return techcombank_login(user)
+    ary_balance = {}
 
-        if user.account_number in ary_balance:
-            user.is_login = 'Đã đăng nhập'
-            user.balance = ary_balance[user.account_number]
-            user.id = ary_id[user.account_number]
-            user.save_data()
-            return {
-                'status': 'success',
-                'balance': user.balance,
-                'code': 200
-            }
-    except:
-        return {
-                    'status': 'error',
-                    'msg': 'Please relogin!',
-                    'code': 401
-                }
+    for acc in ary_info:
+        if 'BBAN' in acc:
+            ary_balance[acc['BBAN']] = acc['availableBalance']
+        else:
+            return "-1"
+
+    if user.account_number in ary_balance:
+        user.is_login = 'Đã đăng nhập'
+        user.balance = ary_balance[user.account_number]
+        user.save_data()
+        return int(user.balance)
+    return "-1"
 
 def sync_techcombank(user, start, end):
-    d = user.do_refresh_token()
     ary_data = user.get_transactions(start, end)
-    # print(ary_data)
+    print(ary_data)
+
     if not ary_data:
         return {
             'status': 'success',
             'msg': 'Không tìm thấy lịch sử giao dịch',
             'code': 200
         }
-    if ('status' in ary_data and ary_data['status'] == 401) or ('error' in ary_data and ary_data['error'] == 'Unauthorized'):
-        return {
-            'status': 'error',
-            'msg': 'Please relogin!',
-            'code': 401
-        }
-
-
 
     return ary_data
 
 def refresh_token_user(user):
     return user.do_refresh_token()
-def get_key_pos_number(number):
-    line = (number - 1) // 3 + 1
-    pos = (number - 1) % 3 + 1
-    return f"{line}_{pos}"
+def techcombank_transfer(transfers, user,phone_setup_event,start_event,stop_event):
+    # try:
+        # start_event.set()
+        # phone_setup_event.wait()
+        type = 'TCB_NAPAS_PAYMENTS'
+
+        # user.login_with_token()
+
+        # Thong tin chuyen khoan di (Đang code thông tin chuyển khoản nằm trong object transfers)
+        account = transfers['account_number']
+        bank_code = transfers['bank_code']
+
+        if bank_code == "TCB":
+            type = 'TCB_ALIAS_PAYMENTS'
+        info_bank = mapping_bank_code(bank_code)
+        bank_code = info_bank['bank_code']
+        bank_send = {
+            'bankCode': bank_code,
+            'displayNameVi': info_bank['displayNameVi'],
+            'shortName': info_bank['shortName'],
+            'shortName_checker': info_bank['shortName_checker'],
+            'napas': info_bank['napas'],
+            'name': info_bank['name'],
+            'bankNameEn': info_bank['bankNameEn'],
+            'bankNameVn': info_bank['bankNameVn'],
+            'abbreviation': info_bank['abbreviation'],
+        }
+
+        get_name_sender = user.get_name(account, bank_send['napas'],type)
+        print('rec_info',account, bank_send['napas'],type)
+        if not get_name_sender:
+            return user.bank_checker_process(bank_send,get_name_sender,type="error",payment_type=type)
+        if 'errorMessageVn'  in get_name_sender:
+            if get_name_sender['errorMessageVn'] != "Không thể kiểm tra thông tin tài khoản thụ hưởng trực tuyến":
+                    return {
+                        'success': False,
+                        'code': 418,
+                        'message': 'account_name mismatch!',
+                        'data': get_name_sender
+                    }
+            return user.bank_checker_process(bank_send,get_name_sender,type="diff",payment_type=type)
+        if 'errorCode'  in get_name_sender or 'errors' in get_name_sender:
+            if get_name_sender['errorCode'] != "AI-001":
+                    return {
+                        'success': False,
+                        'code': 419,
+                        'message': 'Receiver Bank is in Maintenance!',
+                        'data': get_name_sender
+                    }
+            return user.bank_checker_process(bank_send,get_name_sender,type="diff",payment_type=type)
+        print('get_name_sender',get_name_sender)
+        if 'beneficiaryName' in get_name_sender and  get_name_sender['beneficiaryName'] != transfers['account_name']:
+            return user.bank_checker_process(bank_send,get_name_sender,type="diff",payment_type=type)
+        
+        payment_order_transfer = user.payment_order_transfer(
+        account, get_name_sender['beneficiaryName'], transfers['amount'], bank_send, transfers['message'], type
+    )
+        if 'errorCode'  in payment_order_transfer or 'errors' in payment_order_transfer:
+            return {'code':500, 'success': False, 'message': 'payment_order_transfer error!','data':payment_order_transfer}
+        
+        order_id = payment_order_transfer['id']
+        user.pending_transfer.append(order_id)
+        user.save_data()
+
+        # Wait for authen in app
+        log = user.get_process_status(order_id)
+        check_status_transfer_count = 0
+        while log['approvalDetails']['status'] == 'PENDING' and check_status_transfer_count <= 5:
+            time.sleep(5)
+            log = user.get_process_status(order_id)
+            check_status_transfer_count += 1
+
+        if log['approvalDetails']['status'] == 'PENDING':
+            log['approvalDetails']['status'] = 'FAILED - CONFIRMATION TIME EXCEEDED'
+            log['progressStatus'] = 'FAILED - CONFIRMATION TIME EXCEEDED'
+            log['success'] = False
+            log['message'] = 'FAILED - CONFIRMATION TIME EXCEEDED'
+        else:
+            balance = sync_balance_techcombank(user)
+            log = {
+                'code': 200,
+                'success': True,
+                'message': 'Thành công!',
+                'data': log
+            }
+            pass
+        for key, element in enumerate(user.pending_transfer):
+            if order_id in element:
+                del user.pending_transfer[key]
+                user.save_data()
+        return log
+    
+    # except Exception as e:
+    #     return(e)
+def get_bin_from_code(bank_code):
+    import json
+    with open(path+'banks.json','r', encoding='utf-8') as f:
+        data = json.load(f)
+    for bank in data['data']:
+        if bank['code'] == bank_code:
+            return [bank['bin'],bank['shortName']]
+    return None
+def mapping_bank_code(bank_code, file_path='banks_biz.json'):
+    with open(file_path, 'r', encoding='utf-8') as f:
+        data = json.load(f)
+    bank_code,shortName_checker = get_bin_from_code(bank_code)
+    for bank in data['data']:
+        if bank['bin'] == bank_code:
+            return {
+                'bankNameEn': bank['bankNameEn'],
+                'bankNameVn': bank['bankNameVn'],
+                'shortName': bank['bankShortName'],
+                'shortName_checker': shortName_checker,
+                'displayNameVi': bank['bankNameVn'],
+                'napas': bank['napas'],
+                'name': f"{bank['bankShortName']} - {bank['bankNameEn']} ({bank['abbreviation']})",
+                'abbreviation': bank['abbreviation'],
+                'bank_code': bank['bin']
+            }
+
+    return None
+def techcombank_process_transfer(user,device,transfers,phone_setup_event,start_event,stop_event,logger):
+    check_st = time.time()
+    balance = int(techcombank_login(user))
+    # balance = sync_balance_techcombank(user)
+    # print(balance)
+    # transactions = sync_techcombank(user,"2023-09-15","2023-10-03")
+    # print(transactions)
+    print(f'get_balance | {balance} vnd',time.time() - check_st)
+    logger.info(f'get_balance | {balance} vnd  {time.time() - check_st}', extra={'tags': 'process_time'})
+    if 'balance_threshold' in device and int(balance) < device['balance_threshold']:
+        return {
+            'code': 416,
+            'success': False,
+            'message': 'balance_threshold!',
+            'start_balance': int(balance),
+            'new_balance': int(balance),
+            'break': True         
+        } 
+    if int(balance) < int(transfers['amount']):
+        return {
+            'code': 416,
+            'success': False,
+            'message': 'Not enough money!',
+            'start_balance': int(balance),
+            'new_balance': int(balance),
+            'break': True    
+        }
+    check_st = time.time()
+    transfer = techcombank_transfer(transfers,user,phone_setup_event,start_event,stop_event)
+    print('transferBank',time.time() - check_st)
+    print('transfer',transfer)
+    logger.info(f'transferBank {time.time() - check_st}', extra={'tags': 'process_time'})
+    new_balance = int(sync_balance_techcombank(user))
+    if transfer['success']:
+        log = {
+            'code': 200,
+            'success': True,
+            'message': 'Thành công!',
+            'start_balance': int(balance),
+            'new_balance': int(new_balance),
+            'data': transfer['data'] if 'data' in transfer else transfer
+        }
+    else:
+        log = {
+            'code': transfer['code'] if 'code' in transfer else 500,
+            'success': False,
+            'message': transfer['message'] if 'message' in transfer else 'Thất bại!',
+            'start_balance': int(balance),
+            'new_balance': int(balance),
+            'data': transfer['data'] if 'data' in transfer else transfer
+        }
+    # stop_event.set()
+    transfer_result_queue.put(log)
+    return (log)
+
+def transfer_money_TCB(device,transfers,logger):
+
+    username = device['username']
+    password = device['password']
+    account_number = device['account_number']
+    device_id = device['adb_device_id']
+    pin_code = device['pin_code']
+    user = Techcombank(username, password, account_number, device_id, pin_code,device['proxy_list'])
+
+    thread_techcombank_transfer = threading.Thread(target=techcombank_process_transfer, args=(user,device,transfers,phone_setup_event,start_event,stop_event,logger))
+    thread_techcombank_transfer.start()
+    
+    thread_techcombank_transfer.join()
+    
+    transfer_result = transfer_result_queue.get()
+    return transfer_result
+
+def get_balance_TCB(device):
+    try:
+        username = device['username']
+        password = device['password']
+        account_number = device['account_number']
+        device_id = device['adb_device_id']
+        smart_otp_pin = device['pin_code']
+        user = Techcombank(username, password, account_number,device_id,smart_otp_pin,device['proxy_list'])
+        
+        refresh_token = user.do_refresh_token()
+        if 'access_token' not in refresh_token:
+            # start_event.set()
+            # phone_setup_event.wait()
+            login = user.do_login()
+            if login['status'] == "SUCCESS":
+                # print(json.dumps(login))
+                code = None
+                if 'url' in login:
+                    parsed_url = urlparse(login['url'])
+                    fragment = parsed_url.fragment or ''
+                    params = parse_qs(fragment)
+                    code = params.get('code', [None])[0]
+                    if code:
+                        code = code.replace('_', '')
+                try:
+                    if code:
+                        token = user.get_token(code, "https://business.techcombank.com.vn/redirect")
+                    else:
+                        token = user.auth_token
+                    if token:
+                        return sync_balance_techcombank(user)
+                    else:
+                        return -1
+                except Exception as e:
+                    print(traceback.format_exc())
+                    sys.exit()
+        else:
+            result = sync_balance_techcombank(user)
+            return int(result)
+    except Exception as e:
+        print(traceback.format_exc())
+        sys.exit()
+
+
+
+
 # if __name__ == '__main__':
     # Example usage of the Techcombank class
     # while True:
-    #     # user = Techcombank("0858393379", "Thuan@1704", "19072369596014", "")
-    #     user = Techcombank("0358027860", "Dinh5500@", "19033744815017", "")
+        # user = Techcombank("0858393379", "Thuan@1704", "19072369596014", "")
+        # user = Techcombank("0798150793", "Tien6886@", "19039996445024", "","")
 
-    #     #un comment login for first time, after that just call sync_balance_techcombank or sync_techcombank
+        #un comment login for first time, after that just call sync_balance_techcombank or sync_techcombank
 
-    #     loginTechcombank(user)
+        # balance = login_techcombank(user)
 
-    #     # balance = sync_balance_techcombank(user)
-    #     # print(balance)
-    #     transactions = sync_techcombank(user,"2024-04-01","2024-04-04",10000000)
-    #     print(transactions)
-    #     file_path = "output_tcb_04.04.json"
-    #     with open(file_path, 'w') as json_file:
-    #         json.dump(transactions, json_file, indent=4)
+        # balance = sync_balance_techcombank(user)
+        # print(balance)
+        # transactions = sync_techcombank(user,"2024-04-01","2024-07-12")
+        # print(transactions)
+        # file_path = "output_tcb_04.04.json"
+        # with open(file_path, 'w') as json_file:
+        #     json.dump(transactions, json_file, indent=4)
 
-    #     print(f"JSON data has been saved to {file_path}")
-    #     time.sleep(30)
+        # print(f"JSON data has been saved to {file_path}")
+        # time.sleep(30)
