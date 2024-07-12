@@ -1342,7 +1342,7 @@ def get_balance_TCB(device):
 
         #un comment login for first time, after that just call sync_balance_techcombank or sync_techcombank
 
-        # balance = login_techcombank(user)
+        # balance = techcombank_login(user)
 
         # balance = sync_balance_techcombank(user)
         # print(balance)
