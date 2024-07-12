@@ -16,13 +16,13 @@ class LoginDetails(BaseModel):
     
 @app.post('/login', tags=["login"])
 def login_api(input: LoginDetails):
-        techcombank = Techcombank(input.username, input.password, input.account_number,"")
+        techcombank = Techcombank(input.username, input.password, input.account_number,"","")
         result = techcombank_login(techcombank)
         return (result)
 
 @app.post('/get_balance', tags=["get_balance"])
 def get_balance_api(input: LoginDetails):
-        techcombank = Techcombank(input.username, input.password, input.account_number,"")
+        techcombank = Techcombank(input.username, input.password, input.account_number,"","")
         balance = sync_balance_techcombank(techcombank)
         return (balance)
     
@@ -35,7 +35,7 @@ class Transactions(BaseModel):
     
 @app.post('/get_transactions', tags=["get_transactions"])
 def get_transactions_api(input: Transactions):
-        techcombank = Techcombank(input.username, input.password, input.account_number,"")
+        techcombank = Techcombank(input.username, input.password, input.account_number,"","")
         techcombank_login(techcombank)
         transactions = sync_techcombank(techcombank,input.from_date,input.to_date)
         return (transactions)
