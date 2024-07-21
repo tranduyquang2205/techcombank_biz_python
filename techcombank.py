@@ -1090,7 +1090,7 @@ def sync_techcombank(user, start, end):
             'msg': 'Không tìm thấy lịch sử giao dịch',
             'code': 200
         }
-
+    
     return ary_data
 
 def refresh_token_user(user):

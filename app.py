@@ -2,7 +2,7 @@ from fastapi import FastAPI
 from pydantic import BaseModel
 import uvicorn
 from techcombank import Techcombank,techcombank_login,sync_balance_techcombank,sync_techcombank
-
+from api_response import APIResponse
 
 
 app = FastAPI()
@@ -18,13 +18,13 @@ class LoginDetails(BaseModel):
 def login_api(input: LoginDetails):
         techcombank = Techcombank(input.username, input.password, input.account_number,"","")
         result = techcombank_login(techcombank)
-        return (result)
+        return APIResponse.json_format(result)
 
 @app.post('/get_balance', tags=["get_balance"])
 def get_balance_api(input: LoginDetails):
         techcombank = Techcombank(input.username, input.password, input.account_number,"","")
         balance = sync_balance_techcombank(techcombank)
-        return (balance)
+        return APIResponse.json_format(balance)
     
 class Transactions(BaseModel):
     username: str
@@ -38,7 +38,7 @@ def get_transactions_api(input: Transactions):
         techcombank = Techcombank(input.username, input.password, input.account_number,"","")
         techcombank_login(techcombank)
         transactions = sync_techcombank(techcombank,input.from_date,input.to_date)
-        return (transactions)
+        return APIResponse.json_format(transactions)
     
 if __name__ == "__main__":
     uvicorn.run(app ,host='0.0.0.0', port=3000)
