@@ -9,8 +9,8 @@ class APIResponse():
                 status_code = 500
 
             else:
+                print(response)
                 if 'code' in response:
-                    print(response)
                     status_code = response['code']
                 elif 'result' in response:
                     status_code = 200

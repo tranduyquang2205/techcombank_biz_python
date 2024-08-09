@@ -92,6 +92,9 @@ class Techcombank:
             self.save_data()
         else:
             self.parse_data()
+            self.username = username
+            self.password = password
+            self.account_number = account_number
 
         self.init_data()
     def init_data(self):
@@ -207,7 +210,7 @@ class Techcombank:
         login_url = self.get_login_url()
         if not login_url:
             return {
-                'status': 'SUCCESS',
+                'success': 'SUCCESS',
                 'message': 'Login successfully'
             }
         else:
@@ -250,14 +253,16 @@ class Techcombank:
         elif 'The username or password you entered is incorrect. Please try again' in result:
             return {
                 'status': 'ERROR',
-                'message': 'The username or password you entered is incorrect. Please try again'
+                'message': 'The username or password you entered is incorrect. Please try again',
+                'code': 444
             }
         elif 'An active session was closed when you logged in' in result:
             return self.do_login()
         else:
             return {
                 'status': 'ERROR',
-                'message': 'An error occurred. Please try again later!'
+                'message': 'An error occurred. Please try again later!',
+                'code': 520
             }
 
     def check_session(self, url):
@@ -603,6 +608,7 @@ class Techcombank:
         url = "https://business.techcombank.com.vn/api/arrangement-manager/client-api/v2/productsummary/context/arrangements?businessFunction=Product%20Summary&resourceName=Product%20Summary&privilege=view&size=1000000"
 
         response = self.session.get(url, headers=headers)
+        print(response)
         result = response.json()
 
         if len(result) > 0 and 'id' in result[0]:
@@ -611,7 +617,7 @@ class Techcombank:
         return result
     def get_transactions(self, from_date="2022-11-15", to_date="2022-11-15"):
         # Call required methods
-        self.get_info()
+        # self.get_info()
         self.refresh_arrangements_transactions()
 
         headers = {
@@ -1051,15 +1057,38 @@ def techcombank_login(user):
             else:
                 token = user.auth_token
             if token:
-                return sync_balance_techcombank(user)
+                balance = sync_balance_techcombank(user)
+                if balance != "-1":
+                    return {
+                        'code': 200,
+                        'success': True,
+                        'message': 'Đăng nhập thành công',
+                        'data':{
+                            'balance':balance,
+                            'account_number': user.account_number
+                        }
+                    }
+                else:
+                    return {
+                        'code': 520,
+                        'success': False,
+                        'message': "Unknown Error!"
+                    }
             else:
-                return "-1"
+                return {
+                    'code': 520,
+                    'success': False,
+                    'message': 'Unknown Error!',
+                    }
         except Exception as e:
             print(traceback.format_exc())
             sys.exit()
     else:
-        result = sync_balance_techcombank(user)
-        return (result)
+        return {
+                'code': login['code'],
+                'success': False,
+                'message': login['message'],
+                }
 def sync_balance_techcombank(user):
     refresh_token = user.do_refresh_token()
     ary_info = user.get_info()
@@ -1080,18 +1109,55 @@ def sync_balance_techcombank(user):
         return int(user.balance)
     return "-1"
 
+def sync_balance_techcombank_api(user):
+    refresh_token = user.do_refresh_token()
+    ary_info = user.get_info()
+    if 'code' in ary_info and ary_info['code'] == 401:
+            login =  techcombank_login(user)
+            if 'success' not in login or not login['success']:
+                return login
+    ary_balance = {}
+
+    for acc in ary_info:
+        if 'BBAN' in acc:
+            ary_balance[acc['BBAN']] = acc['availableBalance']
+        else:
+            return {'code':520 ,'success': False, 'message': 'Unknown Error!'}
+
+    if user.account_number in ary_balance:
+        user.balance = ary_balance[user.account_number]
+        user.save_data()
+        return {'code':200,'success': True, 'message': 'Thành công',
+                                'data':{
+                                    'account_number':user.account_number,
+                                    'balance':int(user.balance)
+                        }}
+    return {'code':404,'success': False, 'message': 'account_number not found!'} 
+
 def sync_techcombank(user, start, end):
+    refresh_token = user.do_refresh_token()
+    ary_info = user.get_info()
+    if 'code' in ary_info and ary_info['code'] == 401:
+            login =  techcombank_login(user)
+            if 'success' not in login or not login['success']:
+                return login
     ary_data = user.get_transactions(start, end)
-    print(ary_data)
+
 
     if not ary_data:
         return {
-            'status': 'success',
-            'msg': 'Không tìm thấy lịch sử giao dịch',
+            'success': True,
+            'message': 'Không tìm thấy lịch sử giao dịch',
+            'data':{
+                 'transactions':[]
+            },
             'code': 200
         }
     
-    return ary_data
+    return {'code':200,'success': True, 'message': 'Thành công',
+                            'data':{
+                                'transactions':ary_data,
+                    }}
 
 def refresh_token_user(user):
     return user.do_refresh_token()
