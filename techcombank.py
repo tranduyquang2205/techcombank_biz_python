@@ -256,6 +256,12 @@ class Techcombank:
                 'message': 'The username or password you entered is incorrect. Please try again',
                 'code': 444
             }
+        elif 'Your user is locked. Please go to the Unlock user function' in result:
+            return {
+                'status': 'ERROR',
+                'message': 'Your user is locked. Please go to the Unlock user function',
+                'code': 408
+            }
         elif 'An active session was closed when you logged in' in result or 'Một phiên hoạt động đã bị đóng khi quý khách đăng nhập' in result:
             return self.do_login()
         else:
