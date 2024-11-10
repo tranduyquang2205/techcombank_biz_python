@@ -214,7 +214,7 @@ class Techcombank:
                 'message': 'Login successfully'
             }
         else:
-            login_url = login_url.replace("&&", "&").replace("amp;", "&")
+            login_url = login_url.replace("&&", "&").replace("amp;", "&")+'&kc_locale=en-US'
         headers = {
                 'Accept': '*/*',
                 'Accept-Encoding': 'gzip, deflate, br',
@@ -256,13 +256,14 @@ class Techcombank:
                 'message': 'The username or password you entered is incorrect. Please try again',
                 'code': 444
             }
-        elif 'An active session was closed when you logged in' in result:
+        elif 'An active session was closed when you logged in' in result or 'Một phiên hoạt động đã bị đóng khi quý khách đăng nhập' in result:
             return self.do_login()
         else:
             return {
                 'status': 'ERROR',
                 'message': 'An error occurred. Please try again later!',
-                'code': 520
+                'code': 500,
+                'data':result
             }
 
     def check_session(self, url):
@@ -1070,15 +1071,17 @@ def techcombank_login(user):
                     }
                 else:
                     return {
-                        'code': 520,
+                        'code': 500,
                         'success': False,
-                        'message': "Unknown Error!"
+                        'message': "Unknown Error!",
+                        'data': balance
                     }
             else:
                 return {
-                    'code': 520,
+                    'code': 500,
                     'success': False,
                     'message': 'Unknown Error!',
+                    'data':login
                     }
         except Exception as e:
             print(traceback.format_exc())
@@ -1088,6 +1091,7 @@ def techcombank_login(user):
                 'code': login['code'],
                 'success': False,
                 'message': login['message'],
+                'data': login['data'] if 'data' in login else None
                 }
 def sync_balance_techcombank(user):
     refresh_token = user.do_refresh_token()
@@ -1112,6 +1116,7 @@ def sync_balance_techcombank(user):
 def sync_balance_techcombank_api(user):
     refresh_token = user.do_refresh_token()
     ary_info = user.get_info()
+    
     if 'code' in ary_info and ary_info['code'] == 401:
             login =  techcombank_login(user)
             if 'success' not in login or not login['success']:
@@ -1122,7 +1127,7 @@ def sync_balance_techcombank_api(user):
         if 'BBAN' in acc:
             ary_balance[acc['BBAN']] = acc['availableBalance']
         else:
-            return {'code':520 ,'success': False, 'message': 'Unknown Error!'}
+            return {'code':500 ,'success': False, 'message': 'Unknown Error!','data':ary_info}
 
     if user.account_number in ary_balance:
         user.balance = ary_balance[user.account_number]
@@ -1137,6 +1142,7 @@ def sync_balance_techcombank_api(user):
 def sync_techcombank(user, start, end):
     refresh_token = user.do_refresh_token()
     ary_info = user.get_info()
+    print(ary_info)
     if 'code' in ary_info and ary_info['code'] == 401:
             login =  techcombank_login(user)
             if 'success' not in login or not login['success']:
