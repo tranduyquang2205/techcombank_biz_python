@@ -2,4 +2,3 @@ Run the following command to run
 >> python app.py
 >> import otp in command line for first time login(if required)
 >> #uncomment login for first time, after that just call sync_balance_techcom_bank or sync_techcom_bank
->> run refresh_token_user function every 900s to keep token live

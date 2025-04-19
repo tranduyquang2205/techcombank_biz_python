@@ -100,3 +100,4 @@ Cargo.lock
 
 test.py
 db/*/*.json
+*.php

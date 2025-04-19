@@ -23,7 +23,7 @@ def login_api(input: LoginDetails):
 @app.post('/get_balance', tags=["get_balance"])
 def get_balance_api(input: LoginDetails):
         techcombank = Techcombank(input.username, input.password, input.account_number,"","")
-        balance = sync_balance_techcombank_api(techcombank)
+        balance = sync_balance_techcombank(techcombank)
         return APIResponse.json_format(balance)
     
 class Transactions(BaseModel):

