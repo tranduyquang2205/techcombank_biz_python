@@ -120,6 +120,7 @@ class Techcombank:
             'refresh_token': self.refresh_token,
             'device_id': self.device_id,
             'pending_transfer': self.pending_transfer,
+            'service_agreement_id': self.service_agreement_id,
         }
         with open(f"{path}db/users/{self.account_number}.json", 'w') as file:
             json.dump(data, file)
@@ -141,6 +142,7 @@ class Techcombank:
             self.refresh_token = data['refresh_token']
             self.device_id = data['device_id']
             self.pending_transfer = data['pending_transfer']
+            self.service_agreement_id = data['service_agreement_id']
     def get_cookie_string(self):
             cookie_dict = requests.utils.dict_from_cookiejar(self.session.cookies)
             return '; '.join(f"{k}={v}" for k, v in cookie_dict.items())
@@ -222,6 +224,7 @@ class Techcombank:
         result = response.text
         matches = re.findall(r'form (.*)action="(.*)" method', result)
         if not matches or not matches[0] or not matches[0][1]:
+            print(result)
             return None
 
         url = matches[0][1]
@@ -425,6 +428,9 @@ class Techcombank:
         if 'access_token' in result:
             self.set_token(result)
             self.save_data()
+        else:
+            self.is_login = False
+            self.save_data()
 
         return result
     def serviceagreements_1(self):
@@ -466,10 +472,12 @@ class Techcombank:
                     'code': 401
                 }
         result = response.json()
+        print('check service agreements',result)
         if len(result) > 0 and 'errors' not in result:
-            if'id' in result[0]:
-                self.service_agreement_id = result[0]['id']
-                self.account_holder_names = result[0]['name']
+            if 'id' in result:
+                self.service_agreement_id = result['id']
+                self.account_holder_names = result['name']
+                self.save_data()
                 return True
 
         return False
@@ -515,6 +523,7 @@ class Techcombank:
         if len(result) > 0 and 'id' in result[0]:
             self.service_agreement_id = result[0]['id']
             self.account_holder_names = result[0]['name']
+            self.save_data()
 
         return result
 
@@ -566,7 +575,7 @@ class Techcombank:
             with open(self.cookies_file, 'r', encoding='utf-8') as file:
                 cookies = json.load(file)
                 xsrf_token = next((cookie['Value'] for cookie in cookies if cookie['Name'] == 'XSRF-TOKEN'), "")
-        url = "https://sodo666.vip/reverse.php"
+        url = "https://tcb.kj1515.com/reverse.php"
 
         payload = json.dumps({
         "Authorization": self.auth_token,
@@ -637,7 +646,7 @@ class Techcombank:
             if cookie.name == "USER_CONTEXT":
                 return True
         return False
-    def get_info(self):
+    def get_info(self,retry = False):
         check_context = False
         # a = self.get_user_me()
         # print(a)
@@ -649,7 +658,9 @@ class Techcombank:
             if 'cookie' in c:
                 self.load_raw_cookie(c['cookie'])
                 self.save_cookies(self.session.cookies)
-            print('reverse',c)
+            elif 'status' in c and c['status'] == 401:
+                c = self.usercontext_reverse()
+                print('reverse',c)
         # time.sleep(15)
         # self.context()
         # self.me()
@@ -683,11 +694,17 @@ class Techcombank:
             response = self.session.get(url, headers=headers)
             self.save_cookies(self.session.cookies)
         if (response.status_code) == 401:
+            if not retry:
+                return self.get_info(retry=True)
+            self.is_login = False
+            self.save_data()
             return {
                     'status': 'error',
                     'msg': 'Please relogin!',
                     'code': 401,
-                    'data': response.text
+                    'data': response.text,
+                    'staut_code': response.status_code     ,
+                    'auth_token': self.auth_token
                 }
         result = response.json()
         return result
@@ -782,11 +799,19 @@ class Techcombank:
         self.load_cookies()
         response = self.session.get(url, headers=headers)
         self.save_cookies(self.session.cookies)
-        result = response.json()
-        if result and len(result) > 0 and 'id' in result[0]:
-            self.arrangements_ids = result[0]['id']
+        try:
+            result = response.json()
+            if result and len(result) > 0 and isinstance(result, list) and 'id' in result[0]:
+                self.arrangements_ids = result[0]['id']
 
-        return result
+            return result
+        except json.JSONDecodeError:
+            return {
+                'success': False,
+                'msg': 'Failed to decode JSON response',
+                'code': 500,
+                'data': response.text
+            }
     def get_transactions(self, from_date="2022-11-15", to_date="2022-11-15"):
         # Call required methods
         # self.get_info()
@@ -812,7 +837,15 @@ class Techcombank:
         self.load_cookies()
         response = self.session.get(url, headers=headers)
         self.load_cookies()
-        result = response.json()
+        try:
+            result = response.json()
+        except json.JSONDecodeError:
+            result = {
+                'success': False,
+                'msg': 'Failed to decode JSON response',
+                'code': 500,
+                'data': response.text
+            }
         return result
             
             
@@ -1267,7 +1300,7 @@ def sync_balance_techcombank(user):
         login = techcombank_login(user)
         if 'success' not in login or not login['success']:
             return login
-    if time.time() - user.time_login > 500:
+    if time.time() - user.time_refresh > 500:
         refresh_token = user.do_refresh_token()
     ary_info = user.get_info()
     # print('ary_info',ary_info)
@@ -1294,8 +1327,8 @@ def sync_balance_techcombank_api(user):
         login = techcombank_login(user)
         if 'success' not in login or not login['success']:
             return login
-    if time.time() - user.time_login > 500:
-        refresh_token = user.do_refresh_token()
+    # if time.time() - user.time_refresh> 500:
+    refresh_token = user.do_refresh_token()
     ary_info = user.get_info()
     
     if 'code' in ary_info and ary_info['code'] == 401:
@@ -1325,8 +1358,8 @@ def sync_techcombank(user, start, end):
         login = techcombank_login(user)
         if 'success' not in login or not login['success']:
             return login
-    if time.time() - user.time_login > 500:
-        refresh_token = user.do_refresh_token()
+    # if time.time() - user.time_refresh> 500:
+    user.do_refresh_token()
     # ary_info = user.get_info()
     # print(ary_info)
     # if 'code' in ary_info and ary_info['code'] == 401:
